@@ -115,7 +115,7 @@ def test_query():
         # 执行查询（根据你的表结构）
         with conn.cursor() as cursor:
             # 查询users表的第一条记录
-            sql = "SELECT user_id, username, role, real_name FROM users LIMIT 4"
+            sql = "SELECT user_id, username, role, real_name FROM users LIMIT 1"
             cursor.execute(sql)
             result = cursor.fetchone()
             
@@ -229,4 +229,5 @@ def flexible_query():
     finally:
         if conn:
             conn.close()
+
 
