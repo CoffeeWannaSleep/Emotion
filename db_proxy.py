@@ -183,3 +183,49 @@ if __name__ == '__main__':
     except Exception as e:
         logger.critical(f"应用启动失败: {e}")
         raise
+
+
+@app.route('/query', methods=['GET'])
+def flexible_query():
+    """
+    【危险！临时测试接口】
+    通过URL参数执行简单查询。
+    示例：GET /query?table=users&limit=5
+    """
+    # 1. 获取查询参数
+    table_name = request.args.get('table', 'users')
+    limit = request.args.get('limit', '10')
+    
+    # 2. 简单的安全过滤（非常薄弱，仅防明显攻击）
+    allowed_tables = ['users', 'exercise_records']  # 只允许查这两张表
+    if table_name not in allowed_tables:
+        return jsonify({'code': 400, 'message': '不允许查询此表'}), 400
+    
+    try:
+        limit = int(limit)
+        if limit > 50:  # 限制最大返回条数
+            limit = 50
+    except:
+        limit = 10
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 【危险！】直接拼接SQL，存在SQL注入风险
+            sql = f"SELECT * FROM {table_name} LIMIT {limit}"
+            cursor.execute(sql)
+            results = cursor.fetchall()
+        
+        return jsonify({
+            'code': 200,
+            'message': '查询成功',
+            'data': results,
+            'count': len(results)
+        })
+        
+    except pymysql.Error as e:
+        return jsonify({'code': 500, 'message': f'数据库错误: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
