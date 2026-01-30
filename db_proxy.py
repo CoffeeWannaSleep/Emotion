@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # 允许跨域，仅用于测试！
 
+
 # ==================== 数据库连接函数 ====================
 def get_db_connection():
     """
@@ -42,26 +43,27 @@ def get_db_connection():
             'cursorclass': pymysql.cursors.DictCursor,
             'connect_timeout': 10
         }
-        
+
         logger.info(f"尝试连接数据库: host={db_config['host']}, "
-                   f"database={db_config['database']}, user={db_config['user']}")
-        
+                    f"database={db_config['database']}, user={db_config['user']}")
+
         # 验证必要配置是否存在
         if not all([db_config['host'], db_config['user'], db_config['database']]):
             logger.error("数据库环境变量配置不完整！")
             raise ValueError("数据库环境变量配置不完整")
-        
+
         # 建立连接
         connection = pymysql.connect(**db_config)
         logger.info("数据库连接成功")
         return connection
-        
+
     except pymysql.Error as e:
         logger.error(f"数据库连接失败 (pymysql错误): {e}")
         raise
     except Exception as e:
         logger.error(f"数据库连接失败 (其他错误): {e}")
         raise
+
 
 # ==================== API路由定义 ====================
 @app.route('/')
@@ -77,6 +79,7 @@ def index():
         }
     })
 
+
 @app.route('/health')
 def health_check():
     """健康检查端点"""
@@ -86,7 +89,7 @@ def health_check():
             cursor.execute("SELECT 1 as status")
             result = cursor.fetchone()
         conn.close()
-        
+
         return jsonify({
             'code': 200,
             'message': '服务健康，数据库连接正常',
@@ -99,6 +102,7 @@ def health_check():
             'message': f'服务异常: {str(e)}'
         }), 500
 
+
 @app.route('/test', methods=['GET'])
 def test_query():
     """
@@ -108,19 +112,19 @@ def test_query():
     conn = None
     try:
         logger.info("收到 /test 请求")
-        
+
         # 连接数据库
         conn = get_db_connection()
-        
+
         # 执行查询（根据你的表结构）
         with conn.cursor() as cursor:
             # 查询users表的第一条记录
             sql = "SELECT user_id, username, role, real_name FROM users LIMIT 1"
             cursor.execute(sql)
             result = cursor.fetchone()
-            
+
             logger.info(f"查询结果: {result}")
-        
+
         # 返回结果
         if result:
             return jsonify({
@@ -135,7 +139,7 @@ def test_query():
                 'message': '用户表中没有数据',
                 'data': None
             })
-            
+
     except pymysql.Error as e:
         logger.error(f"数据库查询错误: {e}")
         return jsonify({
@@ -154,37 +158,6 @@ def test_query():
             conn.close()
             logger.debug("数据库连接已关闭")
 
-# ==================== 应用启动 ====================
-if __name__ == '__main__':
-    """
-    应用入口点
-    Railway会通过Procfile中的命令启动此应用
-    """
-    try:
-        # 获取Railway分配的端口（环境变量PORT）
-        port = int(os.environ.get('PORT', 5000))
-        
-        logger.info("=" * 50)
-        logger.info("开始启动数据库代理服务")
-        logger.info(f"运行端口: {port}")
-        logger.info(f"数据库主机: {os.environ.get('DB_HOST', '未设置')}")
-        logger.info(f"数据库名称: {os.environ.get('DB_NAME', '未设置')}")
-        logger.info("=" * 50)
-        
-        # 启动Flask应用
-        # debug=False 在生产环境必须为False
-        app.run(
-            host='0.0.0.0',  # 监听所有网络接口
-            port=port,
-            debug=False,      # Railway上必须为False
-            threaded=True     # 启用多线程处理请求
-        )
-        
-    except Exception as e:
-        logger.critical(f"应用启动失败: {e}")
-        raise
-
-
 @app.route('/query', methods=['GET'])
 def flexible_query():
     """
@@ -195,19 +168,19 @@ def flexible_query():
     # 1. 获取查询参数
     table_name = request.args.get('table', 'users')
     limit = request.args.get('limit', '10')
-    
+
     # 2. 简单的安全过滤（非常薄弱，仅防明显攻击）
     allowed_tables = ['users', 'exercise_records']  # 只允许查这两张表
     if table_name not in allowed_tables:
         return jsonify({'code': 400, 'message': '不允许查询此表'}), 400
-    
+
     try:
         limit = int(limit)
         if limit > 50:  # 限制最大返回条数
             limit = 50
     except:
         limit = 10
-    
+
     conn = None
     try:
         conn = get_db_connection()
@@ -216,18 +189,47 @@ def flexible_query():
             sql = f"SELECT * FROM {table_name} LIMIT {limit}"
             cursor.execute(sql)
             results = cursor.fetchall()
-        
+
         return jsonify({
             'code': 200,
             'message': '查询成功',
             'data': results,
             'count': len(results)
         })
-        
+
     except pymysql.Error as e:
         return jsonify({'code': 500, 'message': f'数据库错误: {e}'}), 500
     finally:
         if conn:
             conn.close()
+# ==================== 应用启动 ====================
+if __name__ == '__main__':
+    """
+    应用入口点
+    Railway会通过Procfile中的命令启动此应用
+    """
+    try:
+        # 获取Railway分配的端口（环境变量PORT）
+        port = int(os.environ.get('PORT', 5000))
+
+        logger.info("=" * 50)
+        logger.info("开始启动数据库代理服务")
+        logger.info(f"运行端口: {port}")
+        logger.info(f"数据库主机: {os.environ.get('DB_HOST', '未设置')}")
+        logger.info(f"数据库名称: {os.environ.get('DB_NAME', '未设置')}")
+        logger.info("=" * 50)
+
+        # 启动Flask应用
+        # debug=False 在生产环境必须为False
+        app.run(
+            host='0.0.0.0',  # 监听所有网络接口
+            port=port,
+            debug=False,  # Railway上必须为False
+            threaded=True  # 启用多线程处理请求
+        )
+
+    except Exception as e:
+        logger.critical(f"应用启动失败: {e}")
+        raise
 
 
