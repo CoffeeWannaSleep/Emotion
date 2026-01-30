@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # 创建Flask应用
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False  # 【新增这行】禁用ASCII编码，直接返回中文
 CORS(app)  # 允许跨域，仅用于测试！
 
 
@@ -231,5 +232,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.critical(f"应用启动失败: {e}")
         raise
+
 
 
